@@ -1,0 +1,794 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Okta Security Dashboard</title>
+    <style>
+      /* ── Reset & Base ── */
+      *,
+      *::before,
+      *::after {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+      :root {
+        --bg: #0f1117;
+        --surface: #1a1d27;
+        --surface2: #22263a;
+        --border: #2e3250;
+        --accent: #5b6af0;
+        --accent2: #8b96f8;
+        --green: #22c55e;
+        --yellow: #eab308;
+        --red: #ef4444;
+        --muted: #6b7280;
+        --text: #e2e8f0;
+        --text-dim: #94a3b8;
+        --radius: 10px;
+      }
+      html,
+      body {
+        height: 100%;
+        background: var(--bg);
+        color: var(--text);
+        font-family: "Inter", system-ui, sans-serif;
+        font-size: 14px;
+      }
+
+      /* ── Login Screen ── */
+      #login-screen {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 100vh;
+        background: radial-gradient(
+          ellipse at 60% 30%,
+          #1e2a5a 0%,
+          var(--bg) 70%
+        );
+      }
+      .login-card {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 16px;
+        padding: 40px 36px;
+        width: 400px;
+        max-width: 95vw;
+        box-shadow: 0 24px 60px rgba(0, 0, 0, 0.5);
+      }
+      .login-card .logo {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 28px;
+      }
+      .login-card .logo svg {
+        flex-shrink: 0;
+      }
+      .login-card h1 {
+        font-size: 20px;
+        font-weight: 700;
+      }
+      .login-card p {
+        color: var(--text-dim);
+        font-size: 13px;
+        margin-top: 4px;
+      }
+      .login-card label {
+        display: block;
+        margin-bottom: 6px;
+        font-size: 13px;
+        color: var(--text-dim);
+      }
+      .login-card input {
+        width: 100%;
+        padding: 10px 14px;
+        background: var(--surface2);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        color: var(--text);
+        font-size: 14px;
+        outline: none;
+        transition: border-color 0.2s;
+      }
+      .login-card input:focus {
+        border-color: var(--accent);
+      }
+      .login-card input::placeholder {
+        color: var(--muted);
+      }
+      .field-group {
+        margin-bottom: 20px;
+      }
+      .helper {
+        font-size: 12px;
+        color: var(--muted);
+        margin-top: 5px;
+      }
+      .btn-primary {
+        width: 100%;
+        padding: 11px;
+        background: var(--accent);
+        border: none;
+        border-radius: 8px;
+        color: #fff;
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+        transition:
+          opacity 0.2s,
+          transform 0.1s;
+      }
+      .btn-primary:hover {
+        opacity: 0.88;
+      }
+      .btn-primary:active {
+        transform: scale(0.98);
+      }
+      .login-info {
+        margin-top: 20px;
+        background: #1e2340;
+        border: 1px solid #2e3a6a;
+        border-radius: 8px;
+        padding: 12px 14px;
+        font-size: 12px;
+        color: var(--text-dim);
+        line-height: 1.6;
+      }
+      .login-info strong {
+        color: var(--accent2);
+      }
+
+      /* ── Error Bar ── */
+      #error-bar {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        z-index: 999;
+        background: #7f1d1d;
+        color: #fecaca;
+        padding: 10px 20px;
+        font-size: 13px;
+        cursor: pointer;
+        text-align: center;
+      }
+
+      /* ── Dashboard Layout ── */
+      #dashboard {
+        display: none;
+        min-height: 100vh;
+      }
+
+      header {
+        background: var(--surface);
+        border-bottom: 1px solid var(--border);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 14px 24px;
+        position: sticky;
+        top: 0;
+        z-index: 100;
+      }
+      header .brand {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-weight: 700;
+        font-size: 16px;
+      }
+      header .controls {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+
+      #status-msg {
+        font-size: 12px;
+        color: var(--text-dim);
+      }
+      #last-updated {
+        font-size: 12px;
+        color: var(--muted);
+      }
+      #next-refresh {
+        font-size: 12px;
+        color: var(--muted);
+      }
+
+      .btn {
+        padding: 7px 14px;
+        border-radius: 7px;
+        font-size: 13px;
+        font-weight: 600;
+        cursor: pointer;
+        border: 1px solid transparent;
+        transition: opacity 0.2s;
+      }
+      .btn:hover {
+        opacity: 0.8;
+      }
+      .btn-outline {
+        background: transparent;
+        border-color: var(--border);
+        color: var(--text);
+      }
+      .btn-accent {
+        background: var(--accent);
+        color: #fff;
+      }
+      .btn:disabled {
+        opacity: 0.4;
+        cursor: not-allowed;
+      }
+
+      /* ── Token Lifetime Banner ── */
+      .token-banner {
+        background: var(--surface2);
+        border-bottom: 1px solid var(--border);
+        padding: 8px 24px;
+        display: flex;
+        align-items: center;
+        gap: 14px;
+      }
+      #token-lifetime-lbl {
+        font-size: 12px;
+        color: var(--text-dim);
+        white-space: nowrap;
+      }
+      .token-bar-track {
+        flex: 1;
+        height: 6px;
+        background: var(--border);
+        border-radius: 99px;
+        overflow: hidden;
+      }
+      .token-bar-fill {
+        height: 100%;
+        border-radius: 99px;
+        transition:
+          width 1s linear,
+          background 0.5s;
+      }
+      .token-bar-fill.ok {
+        background: var(--green);
+      }
+      .token-bar-fill.warn {
+        background: var(--yellow);
+      }
+      .token-bar-fill.danger {
+        background: var(--red);
+      }
+
+      /* ── Main Grid ── */
+      .main {
+        padding: 24px;
+        display: grid;
+        gap: 20px;
+      }
+
+      /* ── Stat Cards ── */
+      .stat-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+        gap: 16px;
+      }
+      .stat-card {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        padding: 18px 20px;
+      }
+      .stat-card .label {
+        font-size: 12px;
+        color: var(--text-dim);
+        margin-bottom: 8px;
+      }
+      .stat-card .value {
+        font-size: 32px;
+        font-weight: 700;
+        line-height: 1;
+      }
+      .stat-card.red .value {
+        color: var(--red);
+      }
+      .stat-card.yellow .value {
+        color: var(--yellow);
+      }
+      .stat-card.green .value {
+        color: var(--green);
+      }
+
+      /* ── Panels ── */
+      .panel {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        overflow: hidden;
+      }
+      .panel-header {
+        padding: 14px 18px;
+        border-bottom: 1px solid var(--border);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+      }
+      .panel-header h2 {
+        font-size: 14px;
+        font-weight: 600;
+      }
+      .panel-body {
+        padding: 16px 18px;
+      }
+
+      /* ── Severity Bar ── */
+      .sev-grid {
+        display: grid;
+        gap: 8px;
+      }
+      .sev-row {
+        display: grid;
+        grid-template-columns: 60px 1fr 60px;
+        align-items: center;
+        gap: 8px;
+      }
+      .sev-label {
+        font-size: 12px;
+        color: var(--text-dim);
+      }
+      .sev-track {
+        height: 8px;
+        background: var(--surface2);
+        border-radius: 99px;
+        overflow: hidden;
+      }
+      .sev-fill {
+        height: 100%;
+        border-radius: 99px;
+        transition: width 0.5s;
+      }
+      .sev-fill.debug {
+        background: var(--muted);
+      }
+      .sev-fill.info {
+        background: var(--accent);
+      }
+      .sev-fill.warn {
+        background: var(--yellow);
+      }
+      .sev-fill.error {
+        background: var(--red);
+      }
+      .sev-count {
+        font-size: 12px;
+        color: var(--text-dim);
+        text-align: right;
+      }
+
+      /* ── Hourly Chart ── */
+      .bar-chart {
+        display: flex;
+        align-items: flex-end;
+        gap: 3px;
+        height: 90px;
+        overflow: hidden;
+      }
+      .bar-col {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 3px;
+      }
+      .bar-fill {
+        width: 100%;
+        min-height: 2px;
+        background: var(--accent);
+        border-radius: 3px 3px 0 0;
+        transition: height 0.4s;
+      }
+      .bar-label {
+        font-size: 9px;
+        color: var(--muted);
+      }
+
+      /* ── Tables ── */
+      .table-wrap {
+        overflow-x: auto;
+        max-height: 340px;
+        overflow-y: auto;
+      }
+      .table-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        align-items: center;
+        margin-bottom: 14px;
+      }
+      .table-actions input,
+      .table-actions select {
+        background: var(--surface2);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        color: var(--text);
+        padding: 9px 12px;
+        font-size: 13px;
+        outline: none;
+      }
+      .table-actions input {
+        flex: 1;
+        min-width: 220px;
+      }
+      .table-pagination {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: space-between;
+        gap: 10px;
+        margin-top: 12px;
+      }
+      .table-pagination .pager {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-size: 13px;
+        color: var(--text-dim);
+      }
+      .table-pagination .pager button {
+        padding: 7px 12px;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+      }
+      th {
+        position: sticky;
+        top: 0;
+        background: var(--surface2);
+        text-align: left;
+        padding: 8px 12px;
+        font-size: 12px;
+        color: var(--text-dim);
+        font-weight: 600;
+        border-bottom: 1px solid var(--border);
+      }
+      td {
+        padding: 7px 12px;
+        font-size: 13px;
+        border-bottom: 1px solid #1e2130;
+      }
+      tr:last-child td {
+        border-bottom: none;
+      }
+      tr:hover td {
+        background: rgba(255, 255, 255, 0.03);
+      }
+      .empty {
+        color: var(--muted);
+        font-size: 13px;
+        padding: 8px 0;
+      }
+
+      /* ── Badges ── */
+      .badge {
+        display: inline-block;
+        padding: 2px 8px;
+        border-radius: 99px;
+        font-size: 11px;
+        font-weight: 600;
+      }
+      .badge.success {
+        background: rgba(34, 197, 94, 0.15);
+        color: var(--green);
+      }
+      .badge.failure {
+        background: rgba(239, 68, 68, 0.15);
+        color: var(--red);
+      }
+      .badge.neutral {
+        background: rgba(107, 114, 128, 0.15);
+        color: var(--muted);
+      }
+
+      /* ── Top Actors ── */
+      .actor-row {
+        display: grid;
+        grid-template-columns: 1fr 100px 36px;
+        align-items: center;
+        gap: 10px;
+        padding: 5px 0;
+      }
+      .actor-name {
+        font-size: 12px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .actor-bar-wrap {
+        background: var(--surface2);
+        height: 6px;
+        border-radius: 99px;
+        overflow: hidden;
+      }
+      .actor-bar {
+        display: block;
+        height: 100%;
+        background: var(--accent2);
+        border-radius: 99px;
+      }
+      .actor-count {
+        font-size: 12px;
+        color: var(--text-dim);
+        text-align: right;
+      }
+
+      /* ── Two-col layout ── */
+      .two-col {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 20px;
+      }
+      @media (max-width: 860px) {
+        .two-col {
+          grid-template-columns: 1fr;
+        }
+      }
+
+      /* ── Scrollbar ── */
+      ::-webkit-scrollbar {
+        width: 6px;
+        height: 6px;
+      }
+      ::-webkit-scrollbar-track {
+        background: var(--surface2);
+      }
+      ::-webkit-scrollbar-thumb {
+        background: var(--border);
+        border-radius: 3px;
+      }
+    </style>
+  </head>
+  <body>
+    <!-- ═══════════════════════ ERROR BAR ═══════════════════════ -->
+    <div id="error-bar" title="Click to dismiss"></div>
+
+    <!-- ═══════════════════════ LOGIN SCREEN ═══════════════════════ -->
+    <div id="login-screen">
+      <div class="login-card">
+        <div class="logo">
+          <svg width="36" height="36" viewBox="0 0 36 36" fill="none">
+            <rect width="36" height="36" rx="8" fill="#5b6af0" />
+            <path
+              d="M18 8C12.477 8 8 12.477 8 18s4.477 10 10 10 10-4.477 10-10S23.523 8 18 8zm0 16a6 6 0 110-12 6 6 0 010 12z"
+              fill="white"
+            />
+            <circle cx="18" cy="18" r="3" fill="white" />
+          </svg>
+          <div>
+            <h1>Okta Security Dashboard</h1>
+            <p>Authenticate with your Okta organization</p>
+          </div>
+        </div>
+
+        <div class="field-group">
+          <label for="okta-domain">Okta Domain</label>
+          <input
+            type="text"
+            id="okta-domain"
+            placeholder="your-org.okta.com"
+            autocomplete="off"
+          />
+          <p class="helper">e.g. <code>dev-123456.okta.com</code></p>
+        </div>
+
+        <div class="field-group">
+          <label for="okta-client-id">Client ID</label>
+          <input
+            type="text"
+            id="okta-client-id"
+            placeholder="0oaxxxxxxxxxxxxxxx"
+            autocomplete="off"
+          />
+          <p class="helper">Found in Okta Admin → Applications → your app</p>
+        </div>
+
+        <button class="btn-primary" onclick="startLogin()">
+          Sign in with Okta →
+        </button>
+
+        <div class="login-info">
+          <strong>Auth flow:</strong> Authorization Code + PKCE &nbsp;·&nbsp;
+          <strong>Scopes:</strong> openid, profile, email, offline_access,
+          okta.logs.read<br />
+          <strong>Redirect URI:</strong> <code>http://localhost:8080</code
+          ><br />
+          A popup window will open for Okta authentication. Tokens are held in
+          memory only.
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══════════════════════ DASHBOARD ═══════════════════════ -->
+    <div id="dashboard">
+      <!-- Header -->
+      <header>
+        <div class="brand">
+          <svg width="24" height="24" viewBox="0 0 36 36" fill="none">
+            <rect width="36" height="36" rx="8" fill="#5b6af0" />
+            <path
+              d="M18 8C12.477 8 8 12.477 8 18s4.477 10 10 10 10-4.477 10-10S23.523 8 18 8zm0 16a6 6 0 110-12 6 6 0 010 12z"
+              fill="white"
+            />
+            <circle cx="18" cy="18" r="3" fill="white" />
+          </svg>
+          Okta Security Dashboard
+        </div>
+        <div class="controls">
+          <span id="status-msg"></span>
+          <span id="last-updated"></span>
+          <span id="next-refresh"></span>
+          <button
+            class="btn btn-outline"
+            id="refresh-btn"
+            onclick="manualRefresh()"
+          >
+            ↻ Refresh
+          </button>
+          <button class="btn btn-outline" onclick="logout()">Sign out</button>
+        </div>
+      </header>
+
+      <!-- Token Lifetime -->
+      <div class="token-banner">
+        <span id="token-lifetime-lbl">Access token lifetime</span>
+        <div class="token-bar-track">
+          <div
+            class="token-bar-fill ok"
+            id="token-bar"
+            style="width: 100%"
+          ></div>
+        </div>
+      </div>
+
+      <!-- Main Content -->
+      <div class="main">
+        <!-- Stat Cards -->
+        <div class="stat-grid">
+          <div class="stat-card">
+            <div class="label">Total Events (24h)</div>
+            <div class="value" id="stat-total">—</div>
+          </div>
+          <div class="stat-card red">
+            <div class="label">Failed Logins</div>
+            <div class="value" id="stat-failed">—</div>
+          </div>
+          <div class="stat-card yellow">
+            <div class="label">MFA Events</div>
+            <div class="value" id="stat-mfa">—</div>
+          </div>
+          <div class="stat-card green">
+            <div class="label">Policy Changes</div>
+            <div class="value" id="stat-policy">—</div>
+          </div>
+        </div>
+
+        <!-- Severity + Hourly Chart -->
+        <div class="two-col">
+          <div class="panel">
+            <div class="panel-header"><h2>Severity Breakdown</h2></div>
+            <div class="panel-body">
+              <div class="sev-grid">
+                <div class="sev-row">
+                  <span class="sev-label">DEBUG</span>
+                  <div class="sev-track">
+                    <div
+                      class="sev-fill debug"
+                      id="sev-debug"
+                      style="width: 0%"
+                    ></div>
+                  </div>
+                  <span class="sev-count" id="sev-debug-lbl">—</span>
+                </div>
+                <div class="sev-row">
+                  <span class="sev-label">INFO</span>
+                  <div class="sev-track">
+                    <div
+                      class="sev-fill info"
+                      id="sev-info"
+                      style="width: 0%"
+                    ></div>
+                  </div>
+                  <span class="sev-count" id="sev-info-lbl">—</span>
+                </div>
+                <div class="sev-row">
+                  <span class="sev-label">WARN</span>
+                  <div class="sev-track">
+                    <div
+                      class="sev-fill warn"
+                      id="sev-warn"
+                      style="width: 0%"
+                    ></div>
+                  </div>
+                  <span class="sev-count" id="sev-warn-lbl">—</span>
+                </div>
+                <div class="sev-row">
+                  <span class="sev-label">ERROR</span>
+                  <div class="sev-track">
+                    <div
+                      class="sev-fill error"
+                      id="sev-error"
+                      style="width: 0%"
+                    ></div>
+                  </div>
+                  <span class="sev-count" id="sev-error-lbl">—</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="panel">
+            <div class="panel-header"><h2>Events by Hour (last 24 h)</h2></div>
+            <div class="panel-body">
+              <div class="bar-chart" id="hourly-chart"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Suspicious Logins + Top Actors -->
+        <div class="two-col">
+          <div class="panel">
+            <div class="panel-header">
+              <h2>🔴 Suspicious / Failed Logins</h2>
+            </div>
+            <div class="panel-body table-wrap" id="suspicious-table">
+              <p class="empty">No data yet.</p>
+            </div>
+          </div>
+
+          <div class="panel">
+            <div class="panel-header"><h2>Top Actors</h2></div>
+            <div class="panel-body" id="top-actors">
+              <p class="empty">No data yet.</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Full Event Log -->
+        <div class="panel">
+          <div class="panel-header"><h2>Recent Events (last 100)</h2></div>
+          <div class="panel-body">
+            <div class="table-actions">
+              <input
+                type="search"
+                id="events-search"
+                placeholder="Search events..."
+                oninput="onEventsSearch(event)"
+              />
+              <select id="events-sort" onchange="onEventsSortChange(event)">
+                <option value="published_desc">Time ↓</option>
+                <option value="published_asc">Time ↑</option>
+                <option value="event_asc">Event A→Z</option>
+                <option value="event_desc">Event Z→A</option>
+                <option value="actor_asc">Actor A→Z</option>
+                <option value="actor_desc">Actor Z→A</option>
+                <option value="outcome_asc">Outcome A→Z</option>
+                <option value="outcome_desc">Outcome Z→A</option>
+              </select>
+            </div>
+            <div class="table-wrap" id="events-table">
+              <p class="empty">No data yet.</p>
+            </div>
+            <div class="table-pagination" id="events-pagination"></div>
+          </div>
+        </div>
+      </div>
+      <!-- /main -->
+    </div>
+    <!-- /dashboard -->
+
+    <script src="index.js"></script>
+  </body>
+</html>
