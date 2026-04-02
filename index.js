@@ -1,6 +1,6 @@
 // ─── CONFIG ──────────────────────────────────────────────────────────────────
 const CONFIG = {
-  redirectUri: "http://localhost:8080",
+  redirectUri: "https://ptsource90.github.io/okta-security-dashboard",
   scopes: "offline_access okta.logs.read",
 };
 
