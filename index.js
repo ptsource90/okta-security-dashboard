@@ -1,8 +1,11 @@
 // ─── CONFIG ──────────────────────────────────────────────────────────────────
 const CONFIG = {
-  redirectUri: "https://ptsource90.github.io/okta-security-dashboard",
   scopes: "offline_access okta.logs.read",
 };
+
+function getRedirectUri() {
+  return `${window.location.origin}${window.location.pathname}`;
+}
 
 // ─── TOKEN STORE (in-memory) ──────────────────────────────────────────────────
 let tokenStore = {
@@ -109,7 +112,7 @@ window.startLogin = async function () {
     response_type: "code",
     response_mode: "query",
     scope: CONFIG.scopes,
-    redirect_uri: CONFIG.redirectUri,
+    redirect_uri: getRedirectUri(),
     state,
     code_challenge_method: "S256",
     code_challenge: challenge,
@@ -167,7 +170,7 @@ async function handleCallback(callbackUrl) {
       body: new URLSearchParams({
         grant_type: "authorization_code",
         client_id: clientId,
-        redirect_uri: CONFIG.redirectUri,
+        redirect_uri: getRedirectUri(),
         code,
         code_verifier: verifier,
       }),
