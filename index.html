@@ -177,6 +177,8 @@
     .table-actions input { flex: 1; min-width: 200px; }
     .table-pagination { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 10px; margin-top: 12px; }
     .table-pagination .pager { display: flex; align-items: center; gap: 10px; font-size: 12px; color: var(--text-dim); }
+    .page-numbers { display: flex; flex-wrap: wrap; gap: 6px; }
+    .page-numbers .btn { min-width: 36px; padding-inline: 10px; }
     table { width: 100%; border-collapse: collapse; }
     th {
       position: sticky; top: 0; background: var(--surface2);
@@ -188,7 +190,51 @@
          overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     tr:last-child td { border-bottom: none; }
     tr:hover td { background: rgba(255,255,255,.03); }
+    td.table-actions-cell { width: 1%; white-space: nowrap; text-align: right; }
+    .table-more-btn { padding: 6px 10px; font-size: 12px; }
     .empty { color: var(--muted); font-size: 13px; padding: 6px 0; }
+
+    /* Modal */
+    .modal-backdrop {
+      display: none; position: fixed; inset: 0; z-index: 600;
+      background: rgba(4, 7, 15, .72); backdrop-filter: blur(8px);
+      align-items: center; justify-content: center; padding: 20px;
+    }
+    .modal-backdrop.open { display: flex; }
+    .modal-card {
+      width: min(860px, 100%); max-height: min(80vh, 760px);
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 18px; box-shadow: 0 24px 80px rgba(0,0,0,.6);
+      display: flex; flex-direction: column; overflow: hidden;
+    }
+    .modal-header {
+      padding: 16px 18px; border-bottom: 1px solid var(--border);
+      display: flex; align-items: flex-start; justify-content: space-between; gap: 16px;
+    }
+    .modal-header h3 { font-size: 16px; margin-bottom: 4px; }
+    .modal-header p { font-size: 12px; color: var(--text-dim); }
+    .modal-close {
+      background: transparent; color: var(--text-dim); border: 1px solid var(--border);
+      border-radius: 8px; padding: 8px 12px; cursor: pointer; font-size: 12px;
+    }
+    .modal-close:hover { color: var(--text); }
+    .modal-body { padding: 18px; overflow: auto; display: grid; gap: 14px; }
+    .detail-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px,1fr)); gap: 12px; }
+    .detail-card {
+      background: var(--surface2); border: 1px solid var(--border);
+      border-radius: 12px; padding: 12px;
+    }
+    .detail-card .label {
+      display: block; margin-bottom: 6px; font-size: 11px;
+      color: var(--text-dim); text-transform: uppercase; letter-spacing: .05em;
+    }
+    .detail-card .value { font-size: 13px; line-height: 1.5; word-break: break-word; }
+    .modal-json {
+      background: #0a0d17; border: 1px solid var(--border); border-radius: 12px;
+      padding: 14px; overflow: auto; font-size: 12px; line-height: 1.6;
+      color: var(--accent2); white-space: pre-wrap; word-break: break-word;
+      font-family: Consolas, Monaco, monospace;
+    }
 
     /* ── Badges ── */
     .badge { display: inline-block; padding: 2px 8px; border-radius: 99px; font-size: 11px; font-weight: 700; }
@@ -587,6 +633,22 @@
   </div>
 
 </div><!-- /dashboard -->
+
+<div class="modal-backdrop" id="event-modal" aria-hidden="true">
+  <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="event-modal-title">
+    <div class="modal-header">
+      <div>
+        <h3 id="event-modal-title">Event details</h3>
+        <p id="event-modal-subtitle">Inspect the full record for this log event.</p>
+      </div>
+      <button class="modal-close" type="button" onclick="closeEventModal()">Close</button>
+    </div>
+    <div class="modal-body">
+      <div class="detail-grid" id="event-modal-summary"></div>
+      <pre class="modal-json" id="event-modal-json"></pre>
+    </div>
+  </div>
+</div>
 
 <script src="index.js"></script>
 </body>

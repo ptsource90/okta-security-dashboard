@@ -463,6 +463,7 @@ function appendAiThinking() {
 let refreshTimer = null;
 const EVENTS_PAGE_SIZE = 10;
 let eventTableState = { rows: [], page: 1, search: "", sort: "published_desc" };
+let modalEvent = null;
 
 window.onEventsSearch = function (e) {
   eventTableState.search = e.target.value;
@@ -474,16 +475,67 @@ window.onEventsSortChange = function (e) {
   eventTableState.page = 1;
   renderEventsPanel();
 };
-window.onEventsPage = function (step) {
+window.onEventsPage = function (page) {
   const totalPages = Math.max(
     1,
     Math.ceil(applyEventFilters().length / EVENTS_PAGE_SIZE),
   );
-  eventTableState.page = Math.min(
-    Math.max(1, eventTableState.page + step),
-    totalPages,
-  );
+  eventTableState.page = Math.min(Math.max(1, page), totalPages);
   renderEventsPanel();
+};
+
+window.openEventModal = function (index) {
+  const event = currentLogs[index];
+  if (!event) return;
+
+  modalEvent = event;
+  document.getElementById("event-modal-title").textContent =
+    event.displayMessage ?? event.eventType ?? "Event details";
+  document.getElementById("event-modal-subtitle").textContent =
+    `${fmtDateTime(event.published)} • ${event.eventType ?? "Unknown event"}`;
+  document.getElementById("event-modal-summary").innerHTML = [
+    ["Outcome", badge(event.outcome?.result)],
+    ["Actor", esc(event.actor?.alternateId ?? "—")],
+    ["IP Address", esc(event.securityContext?.ipAddress ?? "—")],
+    ["Severity", esc(event.severity ?? "—")],
+    ["Request ID", esc(event.uuid ?? event.transaction?.id ?? "—")],
+    [
+      "Client",
+      esc(event.client?.userAgent?.rawUserAgent ?? event.client?.device ?? "—"),
+    ],
+    ["Reason", esc(event.outcome?.reason ?? "—")],
+    [
+      "Target",
+      esc(
+        (event.target || [])
+          .map((t) => t.displayName || t.alternateId || t.id)
+          .filter(Boolean)
+          .join(", ") || "—",
+      ),
+    ],
+  ]
+    .map(
+      ([label, value]) =>
+        `<div class="detail-card"><span class="label">${label}</span><div class="value">${value}</div></div>`,
+    )
+    .join("");
+  document.getElementById("event-modal-json").textContent = JSON.stringify(
+    event,
+    null,
+    2,
+  );
+
+  const modal = document.getElementById("event-modal");
+  modal.classList.add("open");
+  modal.setAttribute("aria-hidden", "false");
+};
+
+window.closeEventModal = function () {
+  modalEvent = null;
+  const modal = document.getElementById("event-modal");
+  if (!modal) return;
+  modal.classList.remove("open");
+  modal.setAttribute("aria-hidden", "true");
 };
 
 function onAuthenticated() {
@@ -774,27 +826,67 @@ function renderEventsPanel() {
   renderTable(
     "events-table",
     rows.slice(start, start + EVENTS_PAGE_SIZE),
-    ["Time", "Event", "Actor", "IP", "Outcome"],
+    ["Time", "Event", "Actor", "IP", "Outcome", ""],
     (l) => [
       fmtTime(l.published),
       `<span title="${esc(l.eventType)}">${esc(l.displayMessage ?? l.eventType)}</span>`,
       esc(l.actor?.alternateId ?? "—"),
       esc(l.securityContext?.ipAddress ?? "—"),
       badge(l.outcome?.result),
+      `<div class="table-actions-cell"><button type="button" class="btn btn-outline table-more-btn" onclick="openEventModal(${currentLogs.indexOf(l)})">More</button></div>`,
     ],
   );
 
   const pg = document.getElementById("events-pagination");
   if (pg) {
+    const pageNumbers = buildPageNumbers(totalPages, eventTableState.page)
+      .map((item) =>
+        item === "…"
+          ? `<span>…</span>`
+          : `<button class="btn ${item === eventTableState.page ? "btn-accent" : "btn-outline"}" onclick="onEventsPage(${item})">${item}</button>`,
+      )
+      .join("");
     pg.innerHTML = total
       ? `<div class="pager">
-           <button class="btn btn-outline" onclick="onEventsPage(-1)" ${eventTableState.page === 1 ? "disabled" : ""}>← Prev</button>
-           <span>Page ${eventTableState.page} of ${totalPages}</span>
-           <button class="btn btn-outline" onclick="onEventsPage(1)" ${eventTableState.page === totalPages ? "disabled" : ""}>Next →</button>
+           <button class="btn btn-outline" onclick="onEventsPage(${eventTableState.page - 1})" ${eventTableState.page === 1 ? "disabled" : ""}>← Prev</button>
+           <div class="page-numbers">${pageNumbers}</div>
+           <button class="btn btn-outline" onclick="onEventsPage(${eventTableState.page + 1})" ${eventTableState.page === totalPages ? "disabled" : ""}>Next →</button>
          </div>
-         <div class="pager"><span>${total} matching event${total === 1 ? "" : "s"}</span></div>`
+         <div class="pager"><span>Page ${eventTableState.page} of ${totalPages} • ${total} matching event${total === 1 ? "" : "s"}</span></div>`
       : `<div class="pager"><span>No matching events.</span></div>`;
   }
+}
+
+function buildPageNumbers(totalPages, currentPage) {
+  if (totalPages <= 7) {
+    return Array.from({ length: totalPages }, (_, i) => i + 1);
+  }
+
+  const pages = new Set([1, totalPages, currentPage - 1, currentPage, currentPage + 1]);
+  if (currentPage <= 3) {
+    pages.add(2);
+    pages.add(3);
+    pages.add(4);
+  }
+  if (currentPage >= totalPages - 2) {
+    pages.add(totalPages - 1);
+    pages.add(totalPages - 2);
+    pages.add(totalPages - 3);
+  }
+
+  const ordered = [...pages]
+    .filter((page) => page >= 1 && page <= totalPages)
+    .sort((a, b) => a - b);
+  const result = [];
+
+  ordered.forEach((page, index) => {
+    if (index > 0 && page - ordered[index - 1] > 1) {
+      result.push("…");
+    }
+    result.push(page);
+  });
+
+  return result;
 }
 
 // ─── TOKEN LIFETIME BAR ───────────────────────────────────────────────────────
@@ -842,6 +934,17 @@ function showError(msg) {
 
 function fmtTime(iso) {
   return new Date(iso).toLocaleTimeString([], {
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+  });
+}
+
+function fmtDateTime(iso) {
+  return new Date(iso).toLocaleString([], {
+    year: "numeric",
+    month: "short",
+    day: "2-digit",
     hour: "2-digit",
     minute: "2-digit",
     second: "2-digit",
@@ -916,5 +1019,15 @@ document.addEventListener("DOMContentLoaded", () => {
 
   document.getElementById("error-bar")?.addEventListener("click", () => {
     document.getElementById("error-bar").style.display = "none";
+  });
+  document.getElementById("event-modal")?.addEventListener("click", (event) => {
+    if (event.target.id === "event-modal") {
+      closeEventModal();
+    }
+  });
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && modalEvent) {
+      closeEventModal();
+    }
   });
 });
