@@ -213,17 +213,30 @@ async function getValidToken() {
 }
 
 // ─── OKTA LOGS API ────────────────────────────────────────────────────────────
-async function fetchLogs(since) {
+async function fetchLogs(since, afterUrl = null) {
   const token = await getValidToken();
   const params = new URLSearchParams({ limit: 200, since });
   const resp = await fetch(
-    `https://${tokenStore.oktaDomain}/api/v1/logs?${params}`,
+    afterUrl || `https://${tokenStore.oktaDomain}/api/v1/logs?${params}`,
     {
       headers: { Authorization: `Bearer ${token}`, Accept: "application/json" },
     },
   );
   if (!resp.ok) throw new Error(`Logs API ${resp.status}: ${resp.statusText}`);
-  return resp.json();
+
+  const data = await resp.json();
+
+  const nextPage = resp.headers
+    .get("link")
+    ?.match(/<([^>]+)>;\s*rel="next"/)?.[1];
+
+  if (nextPage && data.length > 0) {
+    const nextLogs = await fetchLogs(since, nextPage);
+    if (nextLogs && nextLogs.length > 0) {
+      data.push(...nextLogs);
+    }
+  }
+  return data;
 }
 
 // ─── AI SECURITY ANALYST ─────────────────────────────────────────────────────
@@ -716,9 +729,9 @@ function renderDashboard(logs) {
       .join("") || '<p class="empty">No data.</p>';
 
   // Event log table
-  eventTableState.rows = [...logs]
-    .sort((a, b) => new Date(b.published) - new Date(a.published))
-    .slice(0, 200);
+  eventTableState.rows = [...logs].sort(
+    (a, b) => new Date(b.published) - new Date(a.published),
+  );
   eventTableState.page = 1;
   renderEventsPanel();
 }
@@ -862,7 +875,13 @@ function buildPageNumbers(totalPages, currentPage) {
     return Array.from({ length: totalPages }, (_, i) => i + 1);
   }
 
-  const pages = new Set([1, totalPages, currentPage - 1, currentPage, currentPage + 1]);
+  const pages = new Set([
+    1,
+    totalPages,
+    currentPage - 1,
+    currentPage,
+    currentPage + 1,
+  ]);
   if (currentPage <= 3) {
     pages.add(2);
     pages.add(3);
